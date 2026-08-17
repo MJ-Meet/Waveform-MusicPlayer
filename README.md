@@ -1,10 +1,17 @@
-# 🎵 Waveform
+<p align="center">
+  <img src="assets/icon.png" width="128" height="128" alt="Waveform Logo" />
+</p>
 
-[![Expo](https://img.shields.io/badge/Expo-SDK%2057-black?style=flat-square&logo=expo&logoColor=white)](https://docs.expo.dev/versions/v57.0.0/)
-[![React Native](https://img.shields.io/badge/React%20Native-0.86-blue?style=flat-square&logo=react&logoColor=white)](https://reactnative.dev/)
-[![SQLite](https://img.shields.io/badge/Database-SQLite-003B57?style=flat-square&logo=sqlite&logoColor=white)](https://sqlite.org/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](LICENSE)
-[![Platforms](https://img.shields.io/badge/Platform-Android%20%7C%20iOS-lightgrey?style=flat-square)](#platform-support)
+<h1 align="center">Waveform</h1>
+
+<p align="center">
+  <a href="https://docs.expo.dev/versions/v57.0.0/"><img src="https://img.shields.io/badge/Expo-SDK%2057-black?style=flat-square&logo=expo&logoColor=white" alt="Expo" /></a>
+  <a href="https://reactnative.dev/"><img src="https://img.shields.io/badge/React%20Native-0.86-blue?style=flat-square&logo=react&logoColor=white" alt="React Native" /></a>
+  <a href="https://sqlite.org/"><img src="https://img.shields.io/badge/Database-SQLite-003B57?style=flat-square&logo=sqlite&logoColor=white" alt="SQLite" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square" alt="License: MIT" /></a>
+  <a href="#platform-support"><img src="https://img.shields.io/badge/Platform-Android%20%7C%20iOS-lightgrey?style=flat-square" alt="Platforms" /></a>
+</p>
+
 
 Waveform is a premium, fully offline music player designed for modern audiophiles. Built with **React Native** and **Expo SDK 57**, it features a dark glassmorphic design language, smooth gesture controls, an animated waveform visualizer, mood-based playlists, and background playback via Expo's new first-party audio API.
 
