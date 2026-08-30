@@ -239,6 +239,12 @@ export const DatabaseService = {
     await database.runAsync('DELETE FROM playlists WHERE id = ?', [id]);
   },
 
+  async deleteTrack(id: string): Promise<void> {
+    const database = await getDb();
+    await database.runAsync('DELETE FROM playlist_tracks WHERE trackId = ?', [id]);
+    await database.runAsync('DELETE FROM tracks WHERE id = ?', [id]);
+  },
+
   async addTrackToPlaylist(playlistId: string, trackId: string, position: number): Promise<void> {
     const database = await getDb();
     await database.runAsync(

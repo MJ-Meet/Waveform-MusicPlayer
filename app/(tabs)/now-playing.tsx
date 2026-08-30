@@ -16,6 +16,7 @@ import { AlbumArt } from '../../src/components/AlbumArt';
 import { SongCard } from '../../src/components/SongCard';
 import { WaveformVisualizer } from '../../src/components/WaveformVisualizer';
 import { SleepTimerModal } from '../../src/components/SleepTimerModal';
+import { SongActionModal } from '../../src/components/SongActionModal';
 import { Colors } from '../../src/theme/colors';
 import { Typography } from '../../src/theme/typography';
 import { formatDuration } from '../../src/utils/generateId';
@@ -25,6 +26,7 @@ export default function NowPlayingScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const [showSleepTimer, setShowSleepTimer] = useState(false);
+  const [selectedActionTrack, setSelectedActionTrack] = useState<Track | null>(null);
 
   const {
     currentTrack,
@@ -70,6 +72,7 @@ export default function NowPlayingScreen() {
               usePlayerStore.getState().playTrack(t, queue);
               usePlayerStore.getState().setIsPlaying(true);
             }}
+            onMenuPress={setSelectedActionTrack}
             showIndex
             index={queueIndex + 1 + index}
             accentColor={accentColor}
@@ -203,6 +206,13 @@ export default function NowPlayingScreen() {
       <SleepTimerModal
         visible={showSleepTimer}
         onClose={() => setShowSleepTimer(false)}
+      />
+
+      <SongActionModal
+        visible={!!selectedActionTrack}
+        track={selectedActionTrack}
+        onClose={() => setSelectedActionTrack(null)}
+        accentColor={accentColor}
       />
     </View>
   );

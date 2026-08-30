@@ -25,6 +25,7 @@ interface SongCardProps {
   track: Track;
   onPress: (track: Track) => void;
   onLongPress?: (track: Track) => void;
+  onMenuPress?: (track: Track) => void;
   showIndex?: boolean;
   index?: number;
   isActive?: boolean;
@@ -35,6 +36,7 @@ export function SongCard({
   track,
   onPress,
   onLongPress,
+  onMenuPress,
   showIndex = false,
   index,
   isActive = false,
@@ -51,8 +53,12 @@ export function SongCard({
   }, [onPress, track]);
 
   const handleLongPress = useCallback(() => {
-    onLongPress?.(track);
-  }, [onLongPress, track]);
+    if (onLongPress) {
+      onLongPress(track);
+    } else if (onMenuPress) {
+      onMenuPress(track);
+    }
+  }, [onLongPress, onMenuPress, track]);
 
   const animStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
@@ -109,7 +115,13 @@ export function SongCard({
           {track.isFavorite && (
             <Ionicons name="heart" size={14} color="#EF4444" style={styles.heartIcon} />
           )}
-          <Ionicons name="ellipsis-vertical" size={18} color={Colors.textTertiary} />
+          <TouchableOpacity
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            onPress={() => onMenuPress?.(track)}
+            style={styles.menuButton}
+          >
+            <Ionicons name="ellipsis-vertical" size={18} color={Colors.textTertiary} />
+          </TouchableOpacity>
         </View>
       </TouchableOpacity>
     </Animated.View>
@@ -157,5 +169,8 @@ const styles = StyleSheet.create({
   },
   heartIcon: {
     marginRight: 2,
+  },
+  menuButton: {
+    padding: 4,
   },
 });

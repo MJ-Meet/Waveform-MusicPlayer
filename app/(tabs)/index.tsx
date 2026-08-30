@@ -22,6 +22,7 @@ import { useLibraryStore } from '../../src/store/libraryStore';
 import { usePlayerStore } from '../../src/store/playerStore';
 import { SongCard } from '../../src/components/SongCard';
 import { AlbumArt } from '../../src/components/AlbumArt';
+import { SongActionModal } from '../../src/components/SongActionModal';
 import { Colors, MoodColors, MoodType } from '../../src/theme/colors';
 import { Typography } from '../../src/theme/typography';
 import { Track } from '../../src/types';
@@ -126,6 +127,7 @@ export default function LibraryScreen() {
   const { currentTrack, accentColor, playTrack } = usePlayerStore();
   const [refreshing, setRefreshing] = useState(false);
   const [libraryLoaded, setLibraryLoaded] = useState(false);
+  const [selectedActionTrack, setSelectedActionTrack] = useState<Track | null>(null);
 
   useEffect(() => {
     loadLibrary().finally(() => setLibraryLoaded(true));
@@ -347,6 +349,7 @@ export default function LibraryScreen() {
           <SongCard
             track={item}
             onPress={handleTrackPress}
+            onMenuPress={setSelectedActionTrack}
             index={index}
             isActive={currentTrack?.id === item.id}
             accentColor={accentColor}
@@ -363,6 +366,14 @@ export default function LibraryScreen() {
         }
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
+      />
+
+      {/* Song Actions Menu Modal */}
+      <SongActionModal
+        visible={!!selectedActionTrack}
+        track={selectedActionTrack}
+        onClose={() => setSelectedActionTrack(null)}
+        accentColor={accentColor}
       />
     </View>
   );

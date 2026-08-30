@@ -4,13 +4,53 @@ import { MetadataService } from './MetadataService';
 import { generateId } from '../utils/generateId';
 
 const AUDIO_EXTENSIONS = [
-  '.mp3', '.m4a', '.aac', '.wav', '.ogg', '.flac', '.opus', '.wma', '.aiff', '.alac', '.mp4',
+  '.mp3', '.m4a', '.aac', '.wav', '.ogg', '.flac', '.opus', '.wma', '.aiff', '.alac',
 ];
 
-function isAudioFile(filename: string): boolean {
+const EXCLUDED_PATTERNS = [
+  /call[\s_-]*rec(ording)?/i,
+  /record(ing)?[\s_-]*\d+/i,
+  /audio[\s_-]*record(er|ing)?/i,
+  /voice[\s_-]*record(er|ing)?/i,
+  /voice[\s_-]*memo/i,
+  /voice[\s_-]*note/i,
+  /voicenote/i,
+  /whatsapp[\s_-]*audio/i,
+  /^ptt[\s_-]/i,
+  /^aud[\s_-]\d{6,}/i,
+  /call_rec_/i,
+  /telegram[\s_-]*audio/i,
+  /\/call_?recordings?\//i,
+  /\/recordings?\//i,
+  /\/voice_?recorder\//i,
+  /\/notifications?\//i,
+  /\/ringtones?\//i,
+  /\/alarms?\//i,
+];
+
+function isMusicFile(filename: string, duration?: number, uri?: string): boolean {
   if (!filename) return false;
   const lower = filename.toLowerCase();
-  return AUDIO_EXTENSIONS.some((ext) => lower.endsWith(ext));
+
+  // Extension check
+  if (!AUDIO_EXTENSIONS.some((ext) => lower.endsWith(ext))) {
+    return false;
+  }
+
+  // Duration check: ignore audio under 15s during automatic scan (notifications, beeps, ringtones)
+  if (duration !== undefined && duration > 0 && duration < 15) {
+    return false;
+  }
+
+  // Exclude call recordings, voice memos, WhatsApp PTT, etc.
+  const target = `${filename} ${uri || ''}`;
+  for (const pattern of EXCLUDED_PATTERNS) {
+    if (pattern.test(target)) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 export const AndroidMusicScanner = {
@@ -60,13 +100,21 @@ export const AndroidMusicScanner = {
             try {
               const filename = (await asset.getFilename()) || `audio_${processed}.mp3`;
               const uri = asset.id; // Content URI on Android
-              const duration = (await asset.getDuration()) || 0;
+              const rawDuration = (await asset.getDuration()) || 0;
+              const durationSec = rawDuration > 1000 ? rawDuration / 1000 : rawDuration;
               const creationTime = (await asset.getCreationTime()) || Date.now();
+
+              // Filter out call recordings & voice memos
+              if (!isMusicFile(filename, durationSec, uri)) {
+                processed++;
+                onProgress?.(processed, assets.length);
+                continue;
+              }
 
               const metadata = await MetadataService.parseTrack(
                 uri,
                 filename,
-                duration > 1000 ? duration / 1000 : duration,
+                durationSec,
                 0,
                 null
               );
@@ -78,8 +126,8 @@ export const AndroidMusicScanner = {
                 title: metadata.title || filename.replace(/\.[^.]+$/, ''),
                 artist: metadata.artist || 'Unknown Artist',
                 album: metadata.album || 'Unknown Album',
-                duration: duration > 1000 ? duration / 1000 : duration,
-                artworkUri: null,
+                duration: durationSec,
+                artworkUri: metadata.artworkUri || null,
                 artworkColor: null,
                 fileSize: 0,
                 dateAdded: creationTime,
@@ -128,7 +176,10 @@ export const AndroidMusicScanner = {
           });
 
           for (const asset of result.assets) {
-            if (!isAudioFile(asset.filename)) {
+            const rawDuration = asset.duration || 0;
+            const durationSec = rawDuration > 1000 ? rawDuration / 1000 : rawDuration;
+
+            if (!isMusicFile(asset.filename, durationSec, asset.uri)) {
               processed++;
               onProgress?.(processed, totalCount);
               continue;
@@ -139,7 +190,7 @@ export const AndroidMusicScanner = {
               const metadata = await MetadataService.parseTrack(
                 uri,
                 asset.filename,
-                asset.duration,
+                durationSec,
                 0,
                 null
               );
@@ -151,8 +202,8 @@ export const AndroidMusicScanner = {
                 title: metadata.title || asset.filename.replace(/\.[^.]+$/, ''),
                 artist: metadata.artist || 'Unknown Artist',
                 album: metadata.album || 'Unknown Album',
-                duration: asset.duration,
-                artworkUri: null,
+                duration: durationSec,
+                artworkUri: metadata.artworkUri || null,
                 artworkColor: null,
                 fileSize: 0,
                 dateAdded: asset.creationTime,

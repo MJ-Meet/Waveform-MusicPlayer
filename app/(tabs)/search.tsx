@@ -15,6 +15,7 @@ import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { useLibraryStore } from '../../src/store/libraryStore';
 import { usePlayerStore } from '../../src/store/playerStore';
 import { SongCard } from '../../src/components/SongCard';
+import { SongActionModal } from '../../src/components/SongActionModal';
 import { Colors } from '../../src/theme/colors';
 import { Typography } from '../../src/theme/typography';
 import { Track } from '../../src/types';
@@ -24,6 +25,7 @@ export default function SearchScreen() {
   const { searchResults, searchQuery, setSearchQuery } = useLibraryStore();
   const { playTrack, accentColor } = usePlayerStore();
   const [isFocused, setIsFocused] = useState(false);
+  const [selectedActionTrack, setSelectedActionTrack] = useState<Track | null>(null);
 
   const handleSearch = useCallback(
     (text: string) => {
@@ -92,6 +94,7 @@ export default function SearchScreen() {
             <SongCard
               track={item}
               onPress={handleTrackPress}
+              onMenuPress={setSelectedActionTrack}
               index={index}
               accentColor={accentColor}
             />
@@ -141,6 +144,14 @@ export default function SearchScreen() {
           </View>
         </Animated.View>
       )}
+
+      {/* Song Actions Menu Modal */}
+      <SongActionModal
+        visible={!!selectedActionTrack}
+        track={selectedActionTrack}
+        onClose={() => setSelectedActionTrack(null)}
+        accentColor={accentColor}
+      />
     </View>
   );
 }

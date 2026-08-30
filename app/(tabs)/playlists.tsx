@@ -18,6 +18,7 @@ import { usePlayerStore } from '../../src/store/playerStore';
 import { DatabaseService } from '../../src/services/DatabaseService';
 import { AlbumArt } from '../../src/components/AlbumArt';
 import { SongCard } from '../../src/components/SongCard';
+import { SongActionModal } from '../../src/components/SongActionModal';
 import { Colors, MoodColors } from '../../src/theme/colors';
 import { Typography } from '../../src/theme/typography';
 import { Playlist, Track } from '../../src/types';
@@ -89,6 +90,7 @@ export default function PlaylistsScreen() {
   const [playlistTracks, setPlaylistTracks] = useState<Track[]>([]);
   const [showCreateInput, setShowCreateInput] = useState(false);
   const [newPlaylistName, setNewPlaylistName] = useState('');
+  const [selectedActionTrack, setSelectedActionTrack] = useState<Track | null>(null);
 
   const handlePlaylistPress = useCallback(async (playlist: Playlist) => {
     const tracks = await DatabaseService.getPlaylistTracks(playlist.id);
@@ -192,6 +194,7 @@ export default function PlaylistsScreen() {
                 playTrack(t, playlistTracks);
                 usePlayerStore.getState().setIsPlaying(true);
               }}
+              onMenuPress={setSelectedActionTrack}
               showIndex
               index={index}
               accentColor={accentColor}
@@ -204,6 +207,14 @@ export default function PlaylistsScreen() {
               <Text style={styles.emptyPlaylistText}>No songs in this playlist</Text>
             </View>
           }
+        />
+
+        {/* Song Actions Menu Modal */}
+        <SongActionModal
+          visible={!!selectedActionTrack}
+          track={selectedActionTrack}
+          onClose={() => setSelectedActionTrack(null)}
+          accentColor={accentColor}
         />
       </View>
     );
