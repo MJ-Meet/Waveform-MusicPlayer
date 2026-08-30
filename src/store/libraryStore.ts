@@ -34,6 +34,7 @@ interface LibraryStore {
   setSearchQuery: (query: string) => Promise<void>;
   getTracksByMood: (mood: string) => Track[];
   refreshMoodPlaylists: () => Promise<void>;
+  updateTrackDuration: (trackId: string, duration: number) => void;
 }
 
 export const useLibraryStore = create<LibraryStore>((set, get) => ({
@@ -297,4 +298,14 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
     const updatedPlaylists = await DatabaseService.getAllPlaylists();
     set({ playlists: updatedPlaylists });
   },
+
+  updateTrackDuration: (trackId, duration) => {
+    set((state) => ({
+      tracks: state.tracks.map((t) =>
+        t.id === trackId ? { ...t, duration } : t
+      ),
+    }));
+    DatabaseService.updateTrackDuration(trackId, duration);
+  },
 }));
+

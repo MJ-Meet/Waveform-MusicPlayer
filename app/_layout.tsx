@@ -15,6 +15,7 @@ import { View, StyleSheet } from 'react-native';
 import { setAudioModeAsync } from 'expo-audio';
 
 import { DatabaseService } from '../src/services/DatabaseService';
+import { AudioPlayerController } from '../src/hooks/usePlayer';
 import { Colors } from '../src/theme/colors';
 
 SplashScreen.preventAutoHideAsync();
@@ -68,6 +69,7 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={styles.root}>
       <SafeAreaProvider>
+        <AudioPlayerController />
         <StatusBar style="light" />
         <Stack
           screenOptions={{

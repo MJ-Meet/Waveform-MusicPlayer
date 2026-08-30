@@ -1,6 +1,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
-import { usePlayerStore } from '../store/playerStore';
+import { usePlayerStore, setPlayerSeekCallback } from '../store/playerStore';
+import { useLibraryStore } from '../store/libraryStore';
 import { Track } from '../types';
 
 export function usePlayer() {
@@ -20,27 +21,102 @@ export function usePlayer() {
     markTrackPlayed,
   } = usePlayerStore();
 
-  // Create player for the current track URI
   const player = useAudioPlayer(
     currentTrack ? { uri: currentTrack.uri } : null
   );
 
   const status = useAudioPlayerStatus(player);
+  const currentUriRef = useRef<string | null>(null);
 
-  // Sync status to store
+  // Set seek callback
+  useEffect(() => {
+    if (player) {
+      setPlayerSeekCallback((pos: number) => {
+        try {
+          player.seekTo(pos);
+        } catch (e) {
+          console.warn('[Player] Seek error:', e);
+        }
+      });
+    }
+    return () => {
+      setPlayerSeekCallback(() => {});
+    };
+  }, [player]);
+
+  // Track change & auto-play
+  useEffect(() => {
+    if (!currentTrack || !player) return;
+
+    if (currentUriRef.current !== currentTrack.uri) {
+      currentUriRef.current = currentTrack.uri;
+      try {
+        player.replace({ uri: currentTrack.uri });
+        if (isPlaying) {
+          player.play();
+        }
+
+        // Enable lockscreen controls on supported platforms
+        try {
+          player.setActiveForLockScreen(true, {
+            title: currentTrack.title || 'Unknown Title',
+            artist: currentTrack.artist || 'Unknown Artist',
+            albumTitle: currentTrack.album || 'Unknown Album',
+          });
+        } catch {}
+      } catch (err) {
+        console.warn('[Player] Error replacing audio source:', err);
+      }
+    }
+  }, [currentTrack?.id, currentTrack?.uri, player, isPlaying]);
+
+  // Play / Pause sync
+  useEffect(() => {
+    if (!player || !currentTrack) return;
+    try {
+      if (isPlaying) {
+        player.play();
+      } else {
+        player.pause();
+      }
+    } catch (err) {
+      console.warn('[Player] Play/Pause sync error:', err);
+    }
+  }, [isPlaying, player]);
+
+  // Volume sync
+  useEffect(() => {
+    if (player) {
+      try {
+        player.volume = volume;
+      } catch {}
+    }
+  }, [volume, player]);
+
+  // Sync status to store & update real track duration
   useEffect(() => {
     if (!status) return;
 
-    if (status.currentTime !== undefined) {
+    if (status.currentTime !== undefined && !isNaN(status.currentTime)) {
       setPosition(status.currentTime);
     }
 
-    if (status.duration !== undefined && status.duration > 0) {
+    if (status.duration !== undefined && status.duration > 0 && !isNaN(status.duration)) {
       setDuration(status.duration);
+
+      // If the current track in library has duration 0 or different, update it
+      if (currentTrack && Math.abs((currentTrack.duration || 0) - status.duration) > 1) {
+        useLibraryStore.getState().updateTrackDuration(currentTrack.id, status.duration);
+      }
     }
 
     if (status.isLoaded !== undefined) {
       setIsLoading(!status.isLoaded);
+    }
+
+    // Sync play state if OS or headphones triggered a pause/resume
+    if (status.playing !== undefined && status.playing !== isPlaying) {
+      setIsPlaying(status.playing);
     }
 
     // Track ended
@@ -51,8 +127,10 @@ export function usePlayer() {
 
   const handleTrackEnd = useCallback(() => {
     if (repeatMode === 'track') {
-      player.seekTo(0);
-      player.play();
+      try {
+        player?.seekTo(0);
+        player?.play();
+      } catch {}
     } else {
       const nextTrack = next();
       if (!nextTrack) {
@@ -60,23 +138,6 @@ export function usePlayer() {
       }
     }
   }, [repeatMode, next, player, setIsPlaying]);
-
-  // Play/pause sync
-  useEffect(() => {
-    if (!currentTrack || !player) return;
-    if (isPlaying) {
-      player.play();
-    } else {
-      player.pause();
-    }
-  }, [isPlaying, currentTrack?.uri]);
-
-  // Volume sync
-  useEffect(() => {
-    if (player) {
-      player.volume = volume;
-    }
-  }, [volume, player]);
 
   // Sleep timer
   useEffect(() => {
@@ -86,7 +147,9 @@ export function usePlayer() {
       const remaining = sleepTimerEnd - Date.now();
 
       if (remaining <= 0) {
-        player?.pause();
+        try {
+          player?.pause();
+        } catch {}
         setIsPlaying(false);
         setSleepTimer(null);
         setVolume(1);
@@ -103,7 +166,7 @@ export function usePlayer() {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [sleepTimerEnd]);
+  }, [sleepTimerEnd, player]);
 
   // Track first play tracking
   const trackedRef = useRef<string | null>(null);
@@ -129,7 +192,9 @@ export function usePlayer() {
 
   const seek = useCallback(
     (position: number) => {
-      player?.seekTo(position);
+      try {
+        player?.seekTo(position);
+      } catch {}
       setPosition(position);
     },
     [player, setPosition]
@@ -143,3 +208,13 @@ export function usePlayer() {
     seek,
   };
 }
+
+/**
+ * Global component mounted at root to keep the audio player alive
+ * throughout the entire app lifecycle
+ */
+export function AudioPlayerController() {
+  usePlayer();
+  return null;
+}
+

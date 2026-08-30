@@ -42,6 +42,12 @@ interface PlayerStore {
   clearQueue: () => void;
 }
 
+let onSeekCallback: ((pos: number) => void) | null = null;
+
+export function setPlayerSeekCallback(cb: (pos: number) => void) {
+  onSeekCallback = cb;
+}
+
 export const usePlayerStore = create<PlayerStore>((set, get) => ({
   currentTrack: null,
   queue: [],
@@ -117,7 +123,10 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
     return prevTrack;
   },
 
-  seekTo: (position) => set({ position }),
+  seekTo: (position) => {
+    set({ position });
+    onSeekCallback?.(position);
+  },
 
   setQueue: (tracks, startIndex = 0) => {
     set({

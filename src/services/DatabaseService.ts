@@ -192,6 +192,11 @@ export const DatabaseService = {
     await database.runAsync('UPDATE tracks SET artworkColor = ? WHERE id = ?', [color, id]);
   },
 
+  async updateTrackDuration(id: string, duration: number): Promise<void> {
+    const database = await getDb();
+    await database.runAsync('UPDATE tracks SET duration = ? WHERE id = ?', [duration, id]);
+  },
+
   async searchTracks(query: string): Promise<Track[]> {
     const database = await getDb();
     const pattern = `%${query}%`;
