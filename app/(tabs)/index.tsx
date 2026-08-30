@@ -118,6 +118,7 @@ export default function LibraryScreen() {
     scanError,
     scanStatus,
     scanLibrary,
+    importFiles,
     loadLibrary,
     getTracksByMood,
   } = useLibraryStore();
@@ -183,19 +184,35 @@ export default function LibraryScreen() {
           </View>
 
           <View style={styles.headerActions}>
-            {/* Scan / Import button */}
+            {/* Scan button */}
             <TouchableOpacity
               style={[styles.headerButton, { borderColor: accentColor + '60' }]}
               onPress={scanLibrary}
               disabled={isScanning}
             >
               <Ionicons
-                name={Platform.OS === 'ios' ? 'add-circle' : 'refresh'}
-                size={18}
+                name="refresh"
+                size={16}
                 color={accentColor}
               />
               <Text style={[styles.headerButtonText, { color: accentColor }]}>
-                {Platform.OS === 'ios' ? 'Import' : 'Scan'}
+                Scan
+              </Text>
+            </TouchableOpacity>
+
+            {/* Pick Files button */}
+            <TouchableOpacity
+              style={[styles.headerButton, { borderColor: accentColor + '60' }]}
+              onPress={importFiles}
+              disabled={isScanning}
+            >
+              <Ionicons
+                name="folder-open-outline"
+                size={16}
+                color={accentColor}
+              />
+              <Text style={[styles.headerButtonText, { color: accentColor }]}>
+                Pick Files
               </Text>
             </TouchableOpacity>
           </View>
@@ -299,18 +316,23 @@ export default function LibraryScreen() {
           <Text style={styles.emptyIcon}>🎵</Text>
           <Text style={styles.emptyTitle}>No music found</Text>
           <Text style={styles.emptySubtitle}>
-            {Platform.OS === 'ios'
-              ? 'Tap Import to add music from the Files app'
-              : 'Tap Scan to find music on your device'}
+            Scan your device or pick audio files directly from any folder (Music, Telegram, Downloads, etc.)
           </Text>
-          <TouchableOpacity
-            style={[styles.emptyButton, { backgroundColor: accentColor }]}
-            onPress={scanLibrary}
-          >
-            <Text style={styles.emptyButtonText}>
-              {Platform.OS === 'ios' ? 'Import Music' : 'Scan Now'}
-            </Text>
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', gap: 12 }}>
+            <TouchableOpacity
+              style={[styles.emptyButton, { backgroundColor: accentColor }]}
+              onPress={scanLibrary}
+            >
+              <Text style={styles.emptyButtonText}>Scan Device</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.emptyButton, { backgroundColor: Colors.surfaceElevated, borderWidth: 1, borderColor: accentColor + '80' }]}
+              onPress={importFiles}
+            >
+              <Text style={[styles.emptyButtonText, { color: accentColor }]}>Pick Audio Files</Text>
+            </TouchableOpacity>
+          </View>
         </Animated.View>
       )}
     </View>

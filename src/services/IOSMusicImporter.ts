@@ -1,16 +1,20 @@
 import * as DocumentPicker from 'expo-document-picker';
-import * as FileSystem from 'expo-file-system/legacy';
+import * as FileSystem from 'expo-file-system';
 import { Track } from '../types';
 import { MetadataService } from './MetadataService';
 import { generateId } from '../utils/generateId';
 
 const MUSIC_DIR = `${FileSystem.documentDirectory ?? ''}music/`;
-const AUDIO_MIME_TYPES = ['audio/*'];
+const AUDIO_MIME_TYPES = ['audio/*', 'audio/mp4', 'audio/x-m4a', 'audio/aac', 'audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/flac'];
 
 async function ensureMusicDirExists(): Promise<void> {
-  const info = await FileSystem.getInfoAsync(MUSIC_DIR);
-  if (!info.exists) {
-    await FileSystem.makeDirectoryAsync(MUSIC_DIR, { intermediates: true });
+  try {
+    const info = await FileSystem.getInfoAsync(MUSIC_DIR);
+    if (!info.exists) {
+      await FileSystem.makeDirectoryAsync(MUSIC_DIR, { intermediates: true });
+    }
+  } catch (e) {
+    console.warn('[MusicImporter] Could not create music dir:', e);
   }
 }
 
@@ -32,7 +36,7 @@ export const IOSMusicImporter = {
       copyToCacheDirectory: false,
     });
 
-    if (result.canceled || result.assets.length === 0) {
+    if (result.canceled || !result.assets || result.assets.length === 0) {
       return [];
     }
 
@@ -85,8 +89,8 @@ export const IOSMusicImporter = {
         };
 
         tracks.push(track);
-      } catch {
-        // Skip failed imports
+      } catch (err) {
+        console.warn('[MusicImporter] Error importing file:', err);
       }
     }
 
@@ -104,3 +108,4 @@ export const IOSMusicImporter = {
     await FileSystem.deleteAsync(uri, { idempotent: true });
   },
 };
+

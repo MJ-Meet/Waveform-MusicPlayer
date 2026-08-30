@@ -152,8 +152,48 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
   },
 
   importFiles: async () => {
-    // iOS-specific: trigger document picker
-    await get().scanLibrary();
+    set({ isScanning: true, scanError: null, scanStatus: '📂 Opening file picker...', scanProgress: { current: 0, total: 0 } });
+
+    try {
+      const tracks = await IOSMusicImporter.importFiles((current, total) => {
+        set({
+          scanProgress: { current, total },
+          scanStatus: `📥 Importing ${current + 1} of ${total} files...`,
+        });
+      });
+
+      if (tracks.length > 0) {
+        set({ scanStatus: `💾 Saving ${tracks.length} imported tracks...` });
+        await MusicLibraryService.persistScanResults(tracks);
+
+        const [allTracks, playlists] = await Promise.all([
+          DatabaseService.getAllTracks(),
+          DatabaseService.getAllPlaylists(),
+        ]);
+
+        set({
+          tracks: allTracks,
+          playlists,
+          lastScanned: Date.now(),
+          isScanning: false,
+          scanProgress: { current: 0, total: 0 },
+          scanStatus: null,
+          scanError: null,
+        });
+
+        await get().loadRediscover();
+        await get().refreshMoodPlaylists();
+      } else {
+        set({ isScanning: false, scanStatus: null });
+      }
+    } catch (error: any) {
+      console.error('[Library] importFiles error:', error);
+      set({
+        isScanning: false,
+        scanStatus: null,
+        scanError: `❌ Import failed: ${error?.message || 'Unknown error'}`,
+      });
+    }
   },
 
   requestPermission: async () => {
