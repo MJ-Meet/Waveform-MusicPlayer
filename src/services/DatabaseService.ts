@@ -5,7 +5,20 @@ let db: SQLite.SQLiteDatabase | null = null;
 
 const getDb = async (): Promise<SQLite.SQLiteDatabase> => {
   if (!db) {
-    db = await SQLite.openDatabaseAsync('waveform.db');
+    try {
+      db = await SQLite.openDatabaseAsync('waveform.db');
+    } catch (e) {
+      db = null;
+      throw new Error(
+        `[Waveform] Failed to open SQLite database. ` +
+        `If this is a fresh install, try uninstalling and reinstalling the app ` +
+        `to clear any conflicting files in the app data directory. ` +
+        `Original error: ${e}`
+      );
+    }
+  }
+  if (!db) {
+    throw new Error('[Waveform] SQLite database is not initialized.');
   }
   return db;
 };

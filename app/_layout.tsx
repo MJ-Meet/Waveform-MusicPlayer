@@ -29,18 +29,26 @@ export default function RootLayout() {
 
   useEffect(() => {
     async function init() {
+      // Enable background audio (independent of DB)
       try {
-        // Enable background audio
         await setAudioModeAsync({
           playsInSilentMode: true,
           shouldPlayInBackground: true,
           interruptionMode: 'doNotMix',
         });
+      } catch (e) {
+        console.warn('[Waveform] Audio mode init error:', e);
+      }
 
-        // Initialize SQLite
+      // Initialize SQLite database
+      try {
         await DatabaseService.initialize();
       } catch (e) {
-        console.warn('Init error:', e);
+        console.error(
+          '[Waveform] Database init failed. ' +
+          'SOLUTION: Uninstall and reinstall the app to fix the corrupted SQLite path.\n',
+          e
+        );
       } finally {
         if (fontsLoaded || fontError) {
           SplashScreen.hideAsync();

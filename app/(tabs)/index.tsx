@@ -116,6 +116,7 @@ export default function LibraryScreen() {
     lastScanned,
     hasPermission,
     scanError,
+    scanStatus,
     scanLibrary,
     loadLibrary,
     getTracksByMood,
@@ -123,17 +124,18 @@ export default function LibraryScreen() {
 
   const { currentTrack, accentColor, playTrack } = usePlayerStore();
   const [refreshing, setRefreshing] = useState(false);
+  const [libraryLoaded, setLibraryLoaded] = useState(false);
 
   useEffect(() => {
-    loadLibrary();
+    loadLibrary().finally(() => setLibraryLoaded(true));
   }, []);
 
-  // Auto-scan on first launch (Android)
+  // Auto-scan on first launch (Android) — only after library is loaded from DB
   useEffect(() => {
-    if (Platform.OS === 'android' && !lastScanned && !isScanning) {
+    if (libraryLoaded && Platform.OS === 'android' && !lastScanned && !isScanning) {
       scanLibrary();
     }
-  }, [lastScanned]);
+  }, [libraryLoaded]);
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -202,7 +204,25 @@ export default function LibraryScreen() {
 
       {/* Scan progress */}
       {isScanning && (
-        <ScanProgress current={scanProgress.current} total={scanProgress.total} />
+        <View style={styles.scanProgress}>
+          <View style={styles.scanProgressBar}>
+            <Animated.View
+              style={[styles.scanProgressFill, { width: `${scanProgress.total > 0 ? Math.round((scanProgress.current / scanProgress.total) * 100) : 0}%`, backgroundColor: Colors.accent }]}
+            />
+          </View>
+          <Text style={styles.scanProgressText}>
+            {scanStatus || (scanProgress.total > 0
+              ? `Scanning ${scanProgress.current} / ${scanProgress.total} files…`
+              : 'Scanning...')}
+          </Text>
+        </View>
+      )}
+
+      {/* Scan status (non-scanning) */}
+      {!isScanning && scanStatus && (
+        <View style={styles.statusBanner}>
+          <Text style={styles.statusText}>{scanStatus}</Text>
+        </View>
       )}
 
       {/* Scan error */}
@@ -386,7 +406,7 @@ const styles = StyleSheet.create({
   },
   errorBanner: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: 8,
     marginHorizontal: 16,
     marginBottom: 8,
@@ -398,6 +418,17 @@ const styles = StyleSheet.create({
     ...Typography.bodySmall,
     color: Colors.warning,
     flex: 1,
+  },
+  statusBanner: {
+    marginHorizontal: 16,
+    marginBottom: 8,
+    padding: 12,
+    borderRadius: 12,
+    backgroundColor: Colors.surfaceElevated,
+  },
+  statusText: {
+    ...Typography.bodySmall,
+    color: Colors.textSecondary,
   },
   permissionBanner: {
     flexDirection: 'row',

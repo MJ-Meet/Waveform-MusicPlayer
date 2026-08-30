@@ -1,4 +1,4 @@
-import * as FileSystem from 'expo-file-system/legacy';
+import * as FileSystem from 'expo-file-system';
 import { Track, TrackMood } from '../types';
 
 // Mood keyword heuristics for classification
@@ -55,11 +55,16 @@ function estimateBpm(title: string): number | null {
   return null;
 }
 
-// Parse ID3v2 tags from a local file
+// Parse ID3v2 tags from a local FILE (file:// URIs only — not content://)
 async function parseId3Tags(uri: string): Promise<Partial<Track> | null> {
+  // content:// URIs (Android Media Store) do NOT support offset/length reads
+  // via expo-file-system — skip ID3 parsing and fall back to filename parsing
+  if (!uri.startsWith('file://')) return null;
+
   try {
     const fileInfo = await FileSystem.getInfoAsync(uri);
     if (!fileInfo.exists) return null;
+
 
     const headerBase64 = await FileSystem.readAsStringAsync(uri, {
       encoding: FileSystem.EncodingType.Base64,

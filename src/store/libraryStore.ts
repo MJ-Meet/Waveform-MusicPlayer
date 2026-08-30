@@ -13,6 +13,7 @@ interface LibraryStore {
   lastScanned: number | null;
   hasPermission: boolean;
   scanError: string | null;
+  scanStatus: string | null; // step-by-step diagnostic message
   sortBy: SortBy;
   sortOrder: SortOrder;
   searchQuery: string;
@@ -44,6 +45,7 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
   lastScanned: null,
   hasPermission: false,
   scanError: null,
+  scanStatus: null,
   sortBy: 'title',
   sortOrder: 'asc',
   searchQuery: '',
@@ -67,29 +69,61 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
   },
 
   scanLibrary: async () => {
-    set({ isScanning: true, scanError: null, scanProgress: { current: 0, total: 0 } });
+    set({ isScanning: true, scanError: null, scanStatus: '⏳ Starting scan...', scanProgress: { current: 0, total: 0 } });
 
     try {
+      // Step 1: Check permission
+      set({ scanStatus: '🔐 Checking media permission...' });
       const hasPermission = await MusicLibraryService.hasPermission();
       if (!hasPermission) {
+        set({ scanStatus: '🔐 Requesting permission...' });
         const granted = await MusicLibraryService.requestPermission();
         if (!granted) {
-          set({ isScanning: false, scanError: 'Permission denied', hasPermission: false });
+          set({
+            isScanning: false,
+            scanStatus: null,
+            scanError: '❌ Permission denied — go to Settings → Apps → Waveform → Permissions → enable "Files and media"',
+            hasPermission: false,
+          });
           return;
         }
       }
+      set({ hasPermission: true, scanStatus: '✅ Permission granted. Scanning files...' });
 
-      set({ hasPermission: true });
-
+      // Step 2: Scan device
       const result = await MusicLibraryService.scanOrImport((current, total) => {
-        set({ scanProgress: { current, total } });
+        set({
+          scanProgress: { current, total },
+          scanStatus: total === 0
+            ? '🔍 Scanning...'
+            : `🎵 Reading file ${current} of ${total}...`,
+        });
       });
 
-      if (result.tracks.length > 0) {
-        await MusicLibraryService.persistScanResults(result.tracks);
+      // Step 3: Report what was found
+      if (result.errors.length > 0) {
+        console.warn('[Library] Scan errors:', result.errors);
       }
 
-      // Reload from DB (deduplicated, with favorites/play counts preserved)
+      if (result.tracks.length === 0) {
+        set({
+          isScanning: false,
+          scanStatus: null,
+          scanProgress: { current: 0, total: 0 },
+          scanError:
+            '⚠️ No audio files found on device.\n\n' +
+            'Make sure you have .mp3, .m4a, .flac or .wav files in your device storage (e.g. the "Music" folder). ' +
+            'If you just copied files, try restarting your phone first so Android can index them.',
+        });
+        return;
+      }
+
+      // Step 4: Save to database
+      set({ scanStatus: `💾 Saving ${result.tracks.length} tracks to database...` });
+      await MusicLibraryService.persistScanResults(result.tracks);
+
+      // Step 5: Reload from DB
+      set({ scanStatus: '📂 Loading library...' });
       const [tracks, playlists] = await Promise.all([
         DatabaseService.getAllTracks(),
         DatabaseService.getAllPlaylists(),
@@ -101,14 +135,18 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
         lastScanned: Date.now(),
         isScanning: false,
         scanProgress: { current: 0, total: 0 },
+        scanStatus: null,
+        scanError: null,
       });
 
       await get().loadRediscover();
       await get().refreshMoodPlaylists();
     } catch (error: any) {
+      console.error('[Library] scanLibrary error:', error);
       set({
         isScanning: false,
-        scanError: error?.message || 'Scan failed',
+        scanStatus: null,
+        scanError: `❌ Scan failed: ${error?.message || 'Unknown error'}`,
       });
     }
   },

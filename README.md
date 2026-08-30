@@ -53,7 +53,7 @@ graph TD
     AM -->|System Scans| EL[expo-media-library]
     IM -->|Manual Selection| ED[expo-document-picker]
     
-    Metadata[MetadataService] -->|ID3 Binary Tag Parser| FS[expo-file-system/legacy]
+    Metadata[MetadataService] -->|ID3 Parser — file:// URIs only| FS[expo-file-system]
     
     AM -.-> Metadata
     IM -.-> Metadata
@@ -81,6 +81,9 @@ Waveform queries the local database to find hidden gems you haven't played in ov
 
 ### 😴 Volume-Fading Sleep Timer
 Set a sleep timer (from 15 to 90 minutes). During the **last 30 seconds** of the countdown, the app initiates a linear volume fade-out before pausing playback.
+
+### 🔍 Real-Time Scan Diagnostics
+The scan progress banner shows step-by-step status messages during library scanning — permission check, file count, database save progress — so you always know exactly what the app is doing.
 
 ---
 
@@ -176,13 +179,13 @@ waveform/
     │   ├── useAccentColor.ts   # Derives vibrant colors from hashes
     │   └── usePlayer.ts        # Bridges Zustand state with expo-audio events
     ├── services/               # Device & Native APIs Integrations
-    │   ├── DatabaseService.ts  # SQLite query interface
-    │   ├── AndroidMusicScanner.ts # Background media library scanner
+    │   ├── DatabaseService.ts  # SQLite query interface with null-safe open guard
+    │   ├── AndroidMusicScanner.ts # Media library scanner (asset.uri direct — no getAssetInfoAsync)
     │   ├── IOSMusicImporter.ts # iOS sandboxed file loader
     │   ├── MusicLibraryService.ts # Unified platform-agnostic facade
-    │   └── MetadataService.ts  # Streamed ID3v2 parser (loads first 10KB of file)
+    │   └── MetadataService.ts  # ID3v2 parser (file:// URIs only; content:// uses filename fallback)
     ├── store/                  # State containers
-    │   ├── libraryStore.ts     # Library states, listings, & database syncs
+    │   ├── libraryStore.ts     # Library states, scan diagnostics, & database syncs
     │   └── playerStore.ts      # Tracks, indices, queues, loop states, & sleep timers
     ├── theme/                  # Aesthetics definition
     │   ├── colors.ts           # Glassmorphism tokens & dark colors
@@ -235,7 +238,11 @@ This project is pre-configured for production builds using [Expo Application Ser
     eas login
     ```
 2.  **Trigger Native Cloud Builds**
-    *   **Android Build (APK / AAB)**:
+    *   **Preview APK (Android)**:
+        ```bash
+        eas build --platform android --profile preview
+        ```
+    *   **Production AAB (Android)**:
         ```bash
         eas build --platform android --profile production
         ```
@@ -243,6 +250,35 @@ This project is pre-configured for production builds using [Expo Application Ser
         ```bash
         eas build --platform ios --profile production
         ```
+
+> [!NOTE]
+> Requires **eas-cli v7+**. The `development` profile uses `buildType: apk` only — `gradleCommand` and `buildType` are mutually exclusive in modern eas-cli and cannot be combined.
+
+---
+
+## 🐛 Known Issues & Fixes
+
+### SQLite `NullPointerException` on first install
+**Symptom**: `NativeDatabase.prepareAsync` rejected with `java.lang.NullPointerException` on app startup.
+
+**Cause**: Android creates a regular *file* at `/data/data/com.waveform.app/files/SQLite` during a broken install, preventing expo-sqlite from creating the required *directory* at that path.
+
+**Fix**: Uninstall the app completely (or run `adb shell pm clear com.waveform.app`), then reinstall. A fresh install creates the correct directory structure. The `DatabaseService` now also wraps `openDatabaseAsync` in a descriptive try/catch to surface this error clearly instead of crashing with an NPE.
+
+### Android music scanner returns 0 tracks
+**Cause**: The original implementation called `getAssetInfoAsync()` for every file to get a `localUri`. This call silently fails on Android 10+ due to scoped storage policy changes, causing every track to be dropped in the catch block.
+
+**Fix**: Use `asset.uri` directly from `getAssetsAsync()`. Content URIs (`content://media/...`) are fully supported by `expo-audio` for playback and do not require `getAssetInfoAsync`.
+
+### ID3 tag parsing on Android `content://` URIs
+**Cause**: `expo-file-system`'s `readAsStringAsync` with `length`/`position` offset parameters only works on `file://` paths — not `content://` media store URIs.
+
+**Fix**: `MetadataService` now checks the URI scheme before attempting ID3 binary parsing. `content://` URIs skip directly to filename-based metadata extraction (which handles `Artist - Title.mp3` patterns).
+
+### Auto-scan triggers before DB load completes
+**Cause**: The auto-scan `useEffect` in the Library screen watched `lastScanned` and fired immediately on mount — before `loadLibrary()` finished reading from SQLite — making it appear as a fresh install even when the DB had tracks.
+
+**Fix**: Added a `libraryLoaded` boolean flag that is set after `loadLibrary()` resolves. The auto-scan only triggers once `libraryLoaded` is `true`.
 
 ---
 

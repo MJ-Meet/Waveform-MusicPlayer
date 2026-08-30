@@ -38,6 +38,8 @@ export const AndroidMusicScanner = {
     });
     totalCount = initial.totalCount;
 
+    if (totalCount === 0) return tracks;
+
     do {
       const result = await MediaLibrary.getAssetsAsync({
         mediaType: MediaLibrary.MediaType.AUDIO,
@@ -46,12 +48,17 @@ export const AndroidMusicScanner = {
       });
 
       for (const asset of result.assets) {
-        if (!isAudioFile(asset.filename)) continue;
+        // MediaType.AUDIO already filters, but double-check extension
+        if (!isAudioFile(asset.filename)) {
+          processed++;
+          onProgress?.(processed, totalCount);
+          continue;
+        }
 
         try {
-          // Get full asset info (includes localUri)
-          const assetInfo = await MediaLibrary.getAssetInfoAsync(asset);
-          const uri = assetInfo.localUri || asset.uri;
+          // Use asset.uri directly — content:// URIs work fine with expo-audio
+          // getAssetInfoAsync is unreliable on Android 10+ and causes silent failures
+          const uri = asset.uri;
 
           const metadata = await MetadataService.parseTrack(
             uri,
@@ -81,8 +88,9 @@ export const AndroidMusicScanner = {
           };
 
           tracks.push(track);
-        } catch {
-          // Skip problematic files
+        } catch (e) {
+          // Skip only truly problematic files, log for debugging
+          console.warn('[Scanner] Skipped file:', asset.filename, e);
         }
 
         processed++;
